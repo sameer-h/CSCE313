@@ -8,7 +8,30 @@
 
 using namespace std;
 
+string filename = "";
 /* Sameer Hussain - CSCE 313 - PA 4*/
+
+bool isOutFile = false;
+__int64_t amountReceived;
+__int64_t totalAmount;
+
+HistogramCollection hc;
+
+void sigFunc(int sig)
+{
+	if(!filename.empty())
+	{
+		system("clear");
+		hc.print();
+	}
+	else
+	{
+		system("clear");
+		cout << "\n File Download Progress ... \n  " << amountReceived*100 / totalAmount << " % done..." << endl;
+	}
+
+	alarm(2);
+}
 
 struct Response // a struct to hold person and ecg number
 {
@@ -85,6 +108,7 @@ void file_thread_function(void* info)
 	__int64_t rem = fileSize; 
 	char recvbuffer[m];
 	FileRequest* to_send = (FileRequest*)fileMsgBuffer;
+	totalAmount = rem;
 
 	while (rem > 0)
 	{
@@ -93,6 +117,7 @@ void file_thread_function(void* info)
 		requestBuffer -> push(temp);
 		rem -= to_send->length;
 		to_send->offset += to_send->length;
+		amountReceived += fm->length;
 	}
 }
 
@@ -107,6 +132,7 @@ void worker_thread_function(BoundedBuffer* requestBuffer, FIFORequestChannel* ch
 		chan->cwrite(request, req.size());
 
 		Request* m = (Request*) request;
+
 
 		if (m->getType() == DATA_REQ_TYPE)
 		{
@@ -156,6 +182,9 @@ void histogram_thread_function (BoundedBuffer* resb, HistogramCollection* hc)
 
 int main(int argc, char *argv[])
 {
+	signal(SIGALRM, sigFunc);
+	alarm(2);
+	
 
 	int n = 10000;
 	int p = 10;
@@ -167,7 +196,7 @@ int main(int argc, char *argv[])
 	int m = MAX_MESSAGE;
 
 	Request qm (QUIT_REQ_TYPE); // quit message for closing channels
-	string filename = "";
+
 	srand(time_t(NULL));
 	string capacity_str = "";
 
@@ -222,7 +251,6 @@ int main(int argc, char *argv[])
 	FIFORequestChannel chan ("control", FIFORequestChannel::CLIENT_SIDE);
 	BoundedBuffer request_buffer(b);
 	BoundedBuffer response_buffer(b);
-	HistogramCollection hc;
 
 	struct timeval start, end;
     gettimeofday (&start, 0);
